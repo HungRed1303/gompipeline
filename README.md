@@ -11,7 +11,7 @@ Một giải pháp phần mềm B2B (Business-to-Business) giúp số hóa toàn
 | Tính năng | Mô tả |
 |---|---|
 | **Kanban Board real-time** | Dashboard hiển thị toàn bộ mẻ gốm theo 7 công đoạn, cập nhật tức thì qua WebSocket |
-| **AI phân tích đơn hàng** | Dùng Google Gemini tự động bóc tách thông số kỹ thuật (loại men, nhiệt độ nung, số lượng đất sét...) từ mô tả văn bản tự nhiên |
+| **AI phân tích đơn hàng** | Dùng Google Gemini 3.6 Flash tự động bóc tách thông số kỹ thuật (loại men, nhiệt độ nung, số lượng đất sét...) từ mô tả văn bản tự nhiên |
 | **Xử lý hàng lỗi (Rework/Split)** | Tách mẻ con, quay lại công đoạn trước — giới hạn tối đa 2 lần rework để tránh lặp vô hạn |
 | **Telegram Bot tích hợp** | Thông báo tự động khi chuyển công đoạn, báo sự cố; thợ xác nhận trực tiếp qua inline-button |
 | **Optimistic Concurrency** | Sử dụng `expected_stage` để chống race condition khi nhiều người thao tác đồng thời |
@@ -67,10 +67,10 @@ graph LR
 |---|---|
 | **Backend** | Python 3.9+, FastAPI, SQLAlchemy (Async), Uvicorn |
 | **Frontend** | React 18 (Vite), CSS3 Variables, Phosphor Icons, Axios |
-| **Database** | SQLite (mặc định) / PostgreSQL (production) — chuyển đổi qua `.env` |
-| **AI** | Google Gemini 1.5 Flash (NLP) + Regex fallback |
+| **Database** | PostgreSQL 16 (Docker) — chuyển đổi qua `.env` |
+| **AI** | Google Gemini 3.6 Flash (NLP) + Regex fallback |
 | **Bot** | Python-Telegram-Bot v21+ (Async) |
-| **DevOps** | Docker Compose (PostgreSQL) |
+| **DevOps** | Docker Compose |
 
 ---
 
@@ -145,13 +145,13 @@ FORMING → DRYING → PAINTING → GLAZING → FIRING → QC → COMPLETED
 
 - **Python** 3.9+
 - **Node.js** 18+
-- (Tùy chọn) **Docker** — nếu dùng PostgreSQL
+- **Docker** & **Docker Compose** — chạy PostgreSQL
 
 ### 1. Clone & cấu hình môi trường
 
 ```bash
-git clone <repo-url>
-cd pipelinegom
+git clone https://github.com/HungRed1303/gompipeline.git
+cd gompipeline
 
 # Tạo file .env từ template
 cp .env.example .env
@@ -167,14 +167,19 @@ GEMINI_API_KEY="AIzaSy..."
 TELEGRAM_BOT_TOKEN="123456:ABC-DEF..."
 TELEGRAM_CHAT_ID="-100XXXXXXX"
 
-# Database — chọn 1 trong 2:
-# SQLite (mặc định, không cần cài thêm gì):
-DATABASE_URL="sqlite+aiosqlite:///./gom.db"
-# PostgreSQL (cần Docker hoặc cài PostgreSQL):
-# DATABASE_URL="postgresql+asyncpg://gom:gom123@localhost:5432/gom_pipeline"
+# Database — PostgreSQL (qua Docker)
+DATABASE_URL="postgresql+asyncpg://gom:gom123@localhost:5432/gom_pipeline"
 ```
 
-### 2. Chạy Backend (FastAPI)
+### 2. Khởi động PostgreSQL (Docker)
+
+```bash
+docker compose up -d
+```
+
+> Container `gom_postgres` sẽ tự tạo database `gom_pipeline` với user `gom` / password `gom123` trên port `5432`.
+
+### 3. Chạy Backend (FastAPI)
 
 ```bash
 # Cài dependencies (file requirements.txt ở thư mục gốc)
@@ -186,8 +191,10 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 > 📖 Swagger UI (Tài liệu API tương tác) có sẵn tại: `http://localhost:8000/docs`
+>
+> Database tự động tạo bảng khi backend khởi động lần đầu (qua `init_db()`).
 
-### 3. Chạy Frontend (React)
+### 4. Chạy Frontend (React)
 
 ```bash
 cd frontend
@@ -196,20 +203,6 @@ npm run dev
 ```
 
 > 🌐 Truy cập Dashboard tại: `http://localhost:5173`
-
-### 4. (Tùy chọn) PostgreSQL với Docker
-
-Nếu muốn dùng PostgreSQL thay SQLite:
-
-```bash
-# Khởi động PostgreSQL container
-docker compose up -d
-
-# Cập nhật .env
-DATABASE_URL="postgresql+asyncpg://gom:gom123@localhost:5432/gom_pipeline"
-```
-
-> Database tự động tạo bảng khi backend khởi động (qua `init_db()`).
 
 ---
 
